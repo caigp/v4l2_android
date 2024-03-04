@@ -40,6 +40,7 @@ JNIEXPORT jint JNICALL
 Java_com_xiaocai_v4l2_V4L2_nativeOpen(JNIEnv *env, jobject thiz, jstring video) {
     const char *path = env->GetStringUTFChars(video, JNI_FALSE);
     int fd = open(path, O_RDWR);
+    LOGD("device_id = %d", fd);
     return fd;
 }
 
@@ -124,7 +125,10 @@ Java_com_xiaocai_v4l2_V4L2_startCapture(JNIEnv *env, jobject thiz, jint device_i
     //开启视频流
     enum v4l2_buf_type type;
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (ioctl(device_id, VIDIOC_STREAMON, &type) == -1) {
+    int ret = 0;
+    ret = ioctl(device_id, VIDIOC_STREAMON, &type);
+    LOGD("VIDIOC_STREAMON = %d", ret);
+    if (ret == -1) {
         return -1;
     }
 
