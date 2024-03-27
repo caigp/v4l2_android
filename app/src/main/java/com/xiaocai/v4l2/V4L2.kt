@@ -54,12 +54,19 @@ class V4L2 {
 
     private fun sudo(device: File): Int {
         val cmd = "chmod 666 " + device.absolutePath + "\nexit\n";
-        val process = Runtime.getRuntime().exec("su")
-        val os = DataOutputStream(process.outputStream)
-        os.write(cmd.toByteArray())
-        os.flush()
-        if (process.waitFor() != 0 || !device.canRead() || !device.canWrite()) {
-            return -1
+        var process: Process? = null
+        try {
+            process = Runtime.getRuntime().exec("su")
+            val os = DataOutputStream(process.outputStream)
+            os.write(cmd.toByteArray())
+            os.flush()
+            if (process.waitFor() != 0 || !device.canRead() || !device.canWrite()) {
+                return -1
+            }
+        } catch (_: Exception) {
+
+        } finally {
+            process?.destroy()
         }
         return 0
     }
