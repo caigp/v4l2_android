@@ -11,45 +11,37 @@ class V4L2 {
         System.loadLibrary("v4l2")
     }
 
-    var deviceId: Int = -1
+    private var bitmap: Bitmap? = null
+    private var byteArray: ByteArray? = null
 
-    var bitmap: Bitmap? = null
-
-    var byteArray: ByteArray? = null
+    private var nativePtr: Long = 0
 
     fun open(video: String, width: Int, height: Int): Int {
         val f = File(video)
-        if (!f.exists()) {
-            return -1
-        }
         if (!f.canRead() || !f.canWrite()) {
-            val ret = sudo(f)
-            if (ret == -1) {
-                return ret
-            }
+            sudo(f)
         }
-        deviceId = nativeOpen(video)
-        if (deviceId == -1) {
+        val ret = nativeOpen(video, nativePtr)
+        if (ret == -1) {
             return -1
         }
         bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         byteArray = ByteArray(width * height * 4)
-        return startCapture(deviceId, width, height)
+        return startCapture(nativePtr, width, height)
     }
 
     fun nextFrame(): Bitmap? {
-        loadNext(deviceId, byteArray)
-        bitmap?.copyPixelsFromBuffer(ByteBuffer.wrap(byteArray!!))
+        val ret = loadNext(nativePtr)
+        if (ret != -1) {
+            getRgba(nativePtr, byteArray)
+            bitmap?.copyPixelsFromBuffer(ByteBuffer.wrap(byteArray!!))
+        }
         return bitmap
     }
 
     fun close(): Int {
-        if (deviceId != -1) {
-            stopCapture(deviceId)
-        }
-        val ret = nativeClose(deviceId)
-        deviceId = -1
-        return ret
+        stopCapture(nativePtr)
+        return nativeClose(nativePtr)
     }
 
     private fun sudo(device: File): Int {
@@ -71,9 +63,10 @@ class V4L2 {
         return 0
     }
 
-    private external fun nativeOpen(video: String): Int
-    private external fun nativeClose(deviceId: Int): Int
-    private external fun startCapture(deviceId: Int, width: Int, height: Int): Int
-    private external fun stopCapture(deviceId: Int)
-    private external fun loadNext(deviceId: Int, byteArray: ByteArray?)
+    private external fun nativeOpen(video: String, ptr: Long): Int
+    private external fun nativeClose(ptr: Long): Int
+    private external fun startCapture(ptr: Long, width: Int, height: Int): Int
+    private external fun stopCapture(ptr: Long)
+    private external fun loadNext(ptr: Long): Int
+    private external fun getRgba(ptr: Long, byteArray: ByteArray?)
 }

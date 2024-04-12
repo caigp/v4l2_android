@@ -21,7 +21,7 @@ add_library( # Sets the name of the library.
         SHARED
 
         # Provides a relative path to your source file(s).
-        native-lib.cpp)
+        native-lib.cpp V4l2Camera.cpp)
 
 add_library(turbojpeg SHARED IMPORTED)
 set_target_properties(
