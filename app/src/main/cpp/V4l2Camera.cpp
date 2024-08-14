@@ -5,23 +5,24 @@
 #include "V4l2Camera.h"
 
 int MyVideo::startCapture(int w, int h) {
-    MyVideo::width = w;
-    MyVideo::height = h;
-    buffers = (struct buffer *) malloc(CAP_BUF_NUM * sizeof(struct buffer));
-    rgba = malloc(width * height * 4);
-
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
 
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width = width;
-    fmt.fmt.pix.height = height;
+    fmt.fmt.pix.width = w;
+    fmt.fmt.pix.height = h;
     fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
     fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
 
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) == -1) {
         return -1;
     }
+
+    MyVideo::width = fmt.fmt.pix.width;
+    MyVideo::height = fmt.fmt.pix.height;
+    buffers = (struct buffer *) malloc(CAP_BUF_NUM * sizeof(struct buffer));
+    rgba = malloc(width * height * 4);
+    LOGD("set width=%d, height=%d", width, height);
 
     struct v4l2_streamparm stream_para;
     //设置帧率30
@@ -99,10 +100,12 @@ void MyVideo::stopCapture() {
             munmap(buffers[i].start, buffers[i].length);
         }
         free(buffers);
+        buffers = NULL;
     }
 
     if (rgba) {
         free(rgba);
+        rgba = NULL;
     }
 }
 
@@ -113,6 +116,21 @@ MyVideo::MyVideo() {
 int MyVideo::openVideo(const char *pathname) {
     fd = open(pathname, O_RDWR);
     LOGD("device_id = %d", fd);
+
+    struct v4l2_capability cap;
+    if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == -1) {
+        return fd;
+    }
+
+    LOGD("Driver name: %s\n", cap.driver);
+    LOGD("Card name: %s\n", cap.card);
+    LOGD("Bus info: %s\n", cap.bus_info);
+    LOGD("Version: %u.%u.%u\n",
+           (cap.version >> 16) & 0xFF,
+           (cap.version >> 8) & 0xFF,
+           cap.version & 0xFF);
+    LOGD("Capabilities: 0x%X\n", cap.capabilities);
+
     return fd;
 }
 
@@ -143,4 +161,25 @@ int MyVideo::loadNext() {
 
 void *MyVideo::getRgba() {
     return rgba;
+}
+
+std::vector<Size> MyVideo::supportSize() {
+    std::vector<Size> supportSize;
+    if (fd != -1) {
+        struct v4l2_frmsizeenum frmsize;
+        memset(&frmsize, 0, sizeof(frmsize));
+        frmsize.pixel_format = V4L2_PIX_FMT_MJPEG;
+        frmsize.index = 0;
+
+        while (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == 0) {
+            LOGD("frame_size<%d*%d>", frmsize.discrete.width, frmsize.discrete.height);
+            struct Size size;
+            size.width = frmsize.discrete.width;
+            size.height = frmsize.discrete.height;
+            supportSize.push_back(size);
+
+            frmsize.index++;
+        }
+    }
+    return supportSize;
 }

@@ -1,6 +1,7 @@
 package com.xiaocai.v4l2
 
 import android.graphics.Bitmap
+import android.util.Size
 import java.io.DataOutputStream
 import java.io.File
 import java.nio.ByteBuffer
@@ -14,20 +15,29 @@ class V4L2 {
     private var bitmap: Bitmap? = null
     private var byteArray: ByteArray? = null
 
+    private var nativeWidth = 0
+    private var nativeHeight = 0
     private var nativePtr: Long = 0
 
-    fun open(video: String, width: Int, height: Int): Int {
+    fun open(video: String): Int {
         val f = File(video)
         if (!f.canRead() || !f.canWrite()) {
             sudo(f)
         }
-        val ret = nativeOpen(video, nativePtr)
-        if (ret == -1) {
-            return -1
+        return nativeOpen(video, nativePtr)
+    }
+
+    fun startCapture(width: Int, height: Int): Int {
+        val ret = startCapture(nativePtr, width, height)
+        if (ret != -1) {
+            bitmap = Bitmap.createBitmap(nativeWidth, nativeHeight, Bitmap.Config.ARGB_8888)
+            byteArray = ByteArray(nativeWidth * nativeHeight * 4)
         }
-        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        byteArray = ByteArray(width * height * 4)
-        return startCapture(nativePtr, width, height)
+        return ret
+    }
+
+    fun getSupportSize(): List<Size> {
+        return getSupportSize(nativePtr)
     }
 
     fun nextFrame(): Bitmap? {
@@ -69,4 +79,5 @@ class V4L2 {
     private external fun stopCapture(ptr: Long)
     private external fun loadNext(ptr: Long): Int
     private external fun getRgba(ptr: Long, byteArray: ByteArray?)
+    private external fun getSupportSize(ptr: Long): List<Size>
 }

@@ -1,11 +1,13 @@
 package com.xiaocai.v4l2_project
 
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceHolder.Callback
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.xiaocai.v4l2.V4L2
 import com.xiaocai.v4l2_project.databinding.ActivityMainBinding
@@ -21,7 +23,7 @@ class MainActivity : AppCompatActivity() {
 
     private var draw: Boolean = true
 
-    private val lock: Any = Any()
+    private var thread: Thread? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,25 +33,29 @@ class MainActivity : AppCompatActivity() {
 
         binding.surface.holder.addCallback(object : Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
-                getVideoPath(arrayListOf("EP28WD"))?.let {
-                    v4L2.open(it, 1920, 1080)
+                getVideoPath(arrayListOf("USB2.0_CAM1"))?.let {
+                    v4L2.open(it)
                 }
+                val supportSize = v4L2.getSupportSize()
+                Log.d("xxx", "surfaceCreated: $supportSize")
+                v4L2.startCapture(1280, 960)
 
-                thread {
+                thread = thread {
                     var fps = 0
                     var start = SystemClock.elapsedRealtime()
                     while (draw) {
-                        var bitmap: Bitmap?
-                        synchronized(lock) {
-                            bitmap = v4L2.nextFrame()
-                        }
-                        if (bitmap == null) {
-                            break
-                        }
+                        val bitmap: Bitmap = v4L2.nextFrame() ?: break
 
                         try {
                             val canvas = holder.lockCanvas()
-                            canvas.drawBitmap(bitmap!!, 0f, 0f, null)
+                            val matrix = Matrix()
+
+                            val s = (canvas.width / bitmap.width.toFloat()).coerceAtMost(canvas.height / bitmap.height.toFloat())
+
+                            matrix.preTranslate((canvas.width - bitmap.width) / 2f, (canvas.height - bitmap.height) / 2f)
+                            matrix.preScale(-s, s, bitmap.width / 2f, bitmap.height / 2f)
+
+                            canvas.drawBitmap(bitmap, matrix, null)
                             holder.unlockCanvasAndPost(canvas)
                         } catch (_: Exception) {
                         }
@@ -78,10 +84,8 @@ class MainActivity : AppCompatActivity() {
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 draw = false
-                synchronized(lock) {
-                    v4L2.close()
-                }
-
+                thread?.join()
+                v4L2.close()
             }
         })
     }

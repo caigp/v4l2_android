@@ -17,11 +17,17 @@
 #include <map>
 #include <unistd.h>
 #include "turbojpeg.h"
+#include <vector>
 
 #define TAG "v4l2_camera"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
 
 #define CAP_BUF_NUM 4
+
+struct Size {
+    unsigned int width;
+    unsigned int height;
+};
 
 struct buffer {
     void * start;
@@ -43,8 +49,9 @@ public:
     void stopCapture();
     int loadNext();
     void * getRgba();
-    int width;
-    int height;
+    std::vector<Size> supportSize();
+    unsigned int width;
+    unsigned int height;
 
 };
 
