@@ -10,7 +10,6 @@
 ```
 var v4L2: V4L2 = V4L2()
 v4L2.open("/dev/video0")
-
 ```
 #### 获取支持的大小
 ```
@@ -24,12 +23,10 @@ v4L2.startCapture(1280, 960)
 #### 然后不断的取回数据，内部取的是mjpeg，turbojpeg解码
 ```
 val bitmap: Bitmap = v4L2.nextFrame()
-
 ```
 #### 关闭释放资源
 ```
 v4L2.close()
-
 ```
 具体使用方式可以查看代码。一般的USB摄像头支持YUV和MJPEG，MJPEG由于是压缩格式，支持的帧率一般比较高，所以这里采用解码MJPEG的方式获得数据
 
